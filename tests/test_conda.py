@@ -12,7 +12,7 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 from conda.models.version import VersionOrder
-from conftest import BASE_PREFIX, DATA, PLATFORM
+from conftest import DATA, PLATFORM
 
 from menuinst._schema import validate
 from menuinst.platforms import Menu, MenuItem
@@ -82,7 +82,7 @@ def test_conda_recent_enough():
 
 
 @pytest.mark.skipif(PLATFORM != "linux", reason="Linux only")
-def test_package_1_linux(tmpdir, conda_cli):
+def test_package_1_linux(tmpdir, conda_cli, base_prefix):
     applications_menu = Path(tmpdir) / "config" / "menus" / "applications.menu"
     if applications_menu.is_file():
         original_xml = applications_menu.read_text()
@@ -90,7 +90,7 @@ def test_package_1_linux(tmpdir, conda_cli):
         original_xml = None
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         menu_items = [item.dict() for item in meta.menu_items]
         items = [menu]
 
@@ -115,11 +115,11 @@ def test_package_1_linux(tmpdir, conda_cli):
 
 
 @pytest.mark.skipif(PLATFORM != "osx", reason="MacOS only")
-def test_package_1_osx(tmpdir, conda_cli):
+def test_package_1_osx(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
         menu_items = [item.dict() for item in meta.menu_items]
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         items = [menu]
         # First case, activation is on, output should be the prefix path
         # Second case, activation is off, output should be N/A
@@ -142,10 +142,10 @@ def test_package_1_osx(tmpdir, conda_cli):
 
 
 @pytest.mark.skipif(PLATFORM != "win", reason="Windows only")
-def test_package_1_windows(tmpdir, conda_cli):
+def test_package_1_windows(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         menu_items = [item.dict() for item in meta.menu_items]
         items = [menu]
         # First case, activation is on, output should be the prefix path
