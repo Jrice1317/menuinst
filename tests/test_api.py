@@ -14,11 +14,13 @@ from typing import Iterable, Tuple
 from xml.etree import ElementTree
 
 import pytest
-from conftest import DATA, PLATFORM
 
 from menuinst.api import install, remove
+from menuinst.platforms.base import platform_key
 from menuinst.platforms.osx import _lsregister
 from menuinst.utils import DEFAULT_PREFIX, logged_run, slugify
+
+DATA = Path(__file__).parent / "data"
 
 
 def _poll_for_file_contents(path, timeout=30):
@@ -65,13 +67,13 @@ def check_output_from_shortcut(
     paths = install(abs_json_path, base_prefix=tmp_base_path)
     try:
         if action == "run_shortcut":
-            if PLATFORM == "win":
+            if platform_key() == "win":
                 lnk = next(p for p in paths if p.suffix == ".lnk")
                 assert lnk.is_file()
                 os.startfile(lnk)
                 output = _poll_for_file_contents(output_file)
             else:
-                if PLATFORM == "linux":
+                if platform_key() == "linux":
                     desktop = next(p for p in paths if p.suffix == ".desktop")
                     with open(desktop) as f:
                         for line in f:
@@ -80,7 +82,7 @@ def check_output_from_shortcut(
                                 break
                         else:
                             raise ValueError("Didn't find Exec line")
-                elif PLATFORM == "osx":
+                elif platform_key() == "osx":
                     app_location = paths[0]
                     executable = next(
                         p
@@ -106,7 +108,7 @@ def check_output_from_shortcut(
                 "linux": ["xdg-open"],
                 "osx": ["open"],
                 "win": ["cmd", "/C", "start"],
-            }[PLATFORM]
+            }[platform_key()]
             process = logged_run([*cmd, arg], check=True)
             output = _poll_for_file_contents(output_file)
     finally:
@@ -114,7 +116,7 @@ def check_output_from_shortcut(
             delete_files += list(paths)
         if remove_after:
             remove(abs_json_path, base_prefix=tmp_base_path)
-        if PLATFORM == "osx" and action in ("open_file", "open_url"):
+        if platform_key() == "osx" and action in ("open_file", "open_url"):
             _lsregister(
                 "-kill",
                 "-r",
@@ -152,7 +154,7 @@ def test_install_remove(tmp_path, delete_files):
     delete_files.extend(paths)
     files_found = set(filter(lambda x: x.exists(), paths))
     assert files_found == paths
-    if PLATFORM != "osx":
+    if platform_key() != "osx":
         metadata_2 = json.loads(metadata.read_text())
         metadata_2["menu_items"][0]["name"] = "Sys.Prefix.2"
         paths_2 = set(
@@ -176,7 +178,7 @@ def test_overwrite_existing_shortcuts(delete_files, caplog):
         "precommands.json",
         remove_after=False,
     )
-    if PLATFORM == "osx":
+    if platform_key() == "osx":
         with pytest.raises(RuntimeError):
             check_output_from_shortcut(
                 delete_files,
@@ -193,7 +195,7 @@ def test_overwrite_existing_shortcuts(delete_files, caplog):
         assert any(line.startswith("Overwriting existing") for line in caplog.messages)
 
 
-@pytest.mark.skipif(PLATFORM == "osx", reason="No menu names on MacOS")
+@pytest.mark.skipif(platform_key() == "osx", reason="No menu names on MacOS")
 def test_placeholders_in_menu_name(delete_files):
     _, paths, tmp_base_path, _ = check_output_from_shortcut(
         delete_files,
@@ -201,14 +203,14 @@ def test_placeholders_in_menu_name(delete_files):
         expected_output=sys.prefix,
         remove_after=False,
     )
-    if PLATFORM == "win":
+    if platform_key() == "win":
         for path in paths:
             if path.suffix == ".lnk" and "Start Menu" in path.parts:
                 assert path.parent.name == f"Sys.Prefix {Path(tmp_base_path).name}"
                 break
         else:
             raise AssertionError("Didn't find Start Menu")
-    elif PLATFORM == "linux":
+    elif platform_key() == "linux":
         config_directory = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
         desktop_directory = (
             Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser()
@@ -238,7 +240,7 @@ def test_precommands(delete_files):
     )
 
 
-@pytest.mark.skipif(PLATFORM != "osx", reason="macOS only")
+@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
 def test_entitlements(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "entitlements.json", remove_after=False, expected_output="entitlements"
@@ -270,7 +272,7 @@ def test_entitlements(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(PLATFORM != "osx", reason="macOS only")
+@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
 def test_no_entitlements_no_signature(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "sys-prefix.json", remove_after=False, expected_output=sys.prefix
@@ -286,7 +288,7 @@ def test_no_entitlements_no_signature(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(PLATFORM != "osx", reason="macOS only")
+@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
 def test_info_plist(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "entitlements.json", remove_after=False, expected_output="entitlements"
@@ -305,7 +307,7 @@ def test_info_plist(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(PLATFORM != "osx", reason="macOS only")
+@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
 def test_osx_symlinks(delete_files):
     json_path, paths, _, output = check_output_from_shortcut(
         delete_files, "osx_symlinks.json", remove_after=False
@@ -369,7 +371,7 @@ def test_url_protocol_association(delete_files):
     )
 
 
-@pytest.mark.skipif(PLATFORM != "win", reason="Windows only")
+@pytest.mark.skipif(platform_key() != "win", reason="Windows only")
 def test_windows_terminal_profiles(tmp_path, run_as_user):
     settings_file = Path(
         tmp_path, "localappdata", "Microsoft", "Windows Terminal", "settings.json"
@@ -403,7 +405,7 @@ def test_name_dictionary(target_env_is_base):
     abs_json_path = DATA / "jsons" / "menu-name.json"
     menu_items = install(abs_json_path, target_prefix=tmp_target_path, base_prefix=tmp_base_path)
     try:
-        if PLATFORM == "linux":
+        if platform_key() == "linux":
             expected = {
                 "package_a" if target_env_is_base else "package_a-not-in-base",
                 "package_b",
@@ -414,7 +416,7 @@ def test_name_dictionary(target_env_is_base):
                 "A" if target_env_is_base else "A_not_in_base",
                 "B",
             }
-            if PLATFORM == "win":
+            if platform_key() == "win":
                 expected.update(["Package"])
         item_names = {item.stem for item in menu_items}
         assert item_names == expected
@@ -423,9 +425,9 @@ def test_name_dictionary(target_env_is_base):
 
 
 def test_vars_in_working_dir(tmp_path, monkeypatch, delete_files):
-    if PLATFORM == "win":
+    if platform_key() == "win":
         expected_directory = Path(os.environ["TEMP"], "working_dir_test")
-    elif PLATFORM == "osx":
+    elif platform_key() == "osx":
         expected_directory = Path(os.environ["TMPDIR"], "working_dir_test")
     else:
         # Linux often does not have an environment variable for the tmp directory

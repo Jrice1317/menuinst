@@ -9,14 +9,9 @@ from tempfile import TemporaryDirectory
 import py
 import pytest
 
-from menuinst.platforms.base import platform_key
-
 logging.basicConfig(level=logging.DEBUG)
 
 os.environ["PYTEST_IN_USE"] = "1"
-DATA = Path(__file__).parent / "data"
-LEGACY = Path(__file__).parent / "_legacy"
-PLATFORM = platform_key()
 
 
 @pytest.fixture(scope="session")

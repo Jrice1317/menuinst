@@ -1,5 +1,5 @@
 import pytest
-from conftest import DATA
+from pathlib import Path
 
 # from hypothesis import given, settings, HealthCheck
 # from hypothesis_jsonschema import from_schema
@@ -13,6 +13,8 @@ from menuinst._schema import BasePlatformSpecific, MenuItem, validate
 # @given(from_schema(MenuInstSchema.schema()))
 # def test_schema_can_be_loaded(value):
 #     assert value
+
+DATA = Path(__file__).parent / "data"
 
 
 @pytest.mark.parametrize(
