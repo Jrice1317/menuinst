@@ -15,7 +15,6 @@ from conda.models.version import VersionOrder
 
 from menuinst._schema import validate
 from menuinst.platforms import Menu, MenuItem
-from menuinst.platforms.base import platform_key
 
 DATA = Path(__file__).parent / "data"
 
@@ -84,7 +83,7 @@ def test_conda_recent_enough():
     assert VersionOrder(data["conda_version"]) >= VersionOrder("4.12a0")
 
 
-@pytest.mark.skipif(platform_key() != "linux", reason="Linux only")
+@pytest.mark.skipif(sys.platform.startswith("linux"), reason="Linux only")
 def test_package_1_linux(tmpdir, conda_cli, base_prefix):
     applications_menu = Path(tmpdir) / "config" / "menus" / "applications.menu"
     if applications_menu.is_file():
@@ -117,7 +116,7 @@ def test_package_1_linux(tmpdir, conda_cli, base_prefix):
         assert original_xml == applications_menu.read_text()
 
 
-@pytest.mark.skipif(platform_key() != "osx", reason="MacOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="MacOS only")
 def test_package_1_osx(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
@@ -144,7 +143,7 @@ def test_package_1_osx(tmpdir, conda_cli, base_prefix):
             assert not path.exists()
 
 
-@pytest.mark.skipif(platform_key() != "win", reason="Windows only")
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_package_1_windows(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)

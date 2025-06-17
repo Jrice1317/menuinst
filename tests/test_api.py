@@ -16,7 +16,6 @@ from xml.etree import ElementTree
 import pytest
 
 from menuinst.api import install, remove
-from menuinst.platforms.base import platform_key
 from menuinst.platforms.osx import _lsregister
 from menuinst.utils import DEFAULT_PREFIX, logged_run, slugify
 
@@ -67,13 +66,13 @@ def check_output_from_shortcut(
     paths = install(abs_json_path, base_prefix=tmp_base_path)
     try:
         if action == "run_shortcut":
-            if platform_key() == "win":
+            if sys.platform == "win32":
                 lnk = next(p for p in paths if p.suffix == ".lnk")
                 assert lnk.is_file()
                 os.startfile(lnk)
                 output = _poll_for_file_contents(output_file)
             else:
-                if platform_key() == "linux":
+                if sys.platform.startswith("linux"):
                     desktop = next(p for p in paths if p.suffix == ".desktop")
                     with open(desktop) as f:
                         for line in f:
@@ -82,7 +81,7 @@ def check_output_from_shortcut(
                                 break
                         else:
                             raise ValueError("Didn't find Exec line")
-                elif platform_key() == "osx":
+                elif sys.platform == "darwin":
                     app_location = paths[0]
                     executable = next(
                         p
@@ -104,11 +103,14 @@ def check_output_from_shortcut(
                 assert url_to_open is not None
                 arg = url_to_open
             app_location = paths[0]
-            cmd = {
-                "linux": ["xdg-open"],
-                "osx": ["open"],
-                "win": ["cmd", "/C", "start"],
-            }[platform_key()]
+            if sys.platform == "darwin":
+                cmd = ["open"]
+            elif sys.platform.startswith("linux"):
+                cmd = ["xdg-open"]
+            elif sys.platform == "win32":
+                cmd = ["cmd", "/C", "start"]
+            else:
+                raise ValueError(f"Unsupported platform: {sys.platform}")
             process = logged_run([*cmd, arg], check=True)
             output = _poll_for_file_contents(output_file)
     finally:
@@ -116,7 +118,7 @@ def check_output_from_shortcut(
             delete_files += list(paths)
         if remove_after:
             remove(abs_json_path, base_prefix=tmp_base_path)
-        if platform_key() == "osx" and action in ("open_file", "open_url"):
+        if sys.platform == "darwin" and action in ("open_file", "open_url"):
             _lsregister(
                 "-kill",
                 "-r",
@@ -154,7 +156,7 @@ def test_install_remove(tmp_path, delete_files):
     delete_files.extend(paths)
     files_found = set(filter(lambda x: x.exists(), paths))
     assert files_found == paths
-    if platform_key() != "osx":
+    if sys.platform != "darwin":
         metadata_2 = json.loads(metadata.read_text())
         metadata_2["menu_items"][0]["name"] = "Sys.Prefix.2"
         paths_2 = set(
@@ -178,7 +180,7 @@ def test_overwrite_existing_shortcuts(delete_files, caplog):
         "precommands.json",
         remove_after=False,
     )
-    if platform_key() == "osx":
+    if sys.platform == "darwin":
         with pytest.raises(RuntimeError):
             check_output_from_shortcut(
                 delete_files,
@@ -195,7 +197,7 @@ def test_overwrite_existing_shortcuts(delete_files, caplog):
         assert any(line.startswith("Overwriting existing") for line in caplog.messages)
 
 
-@pytest.mark.skipif(platform_key() == "osx", reason="No menu names on MacOS")
+@pytest.mark.skipif(sys.platform == "darwin", reason="No menu names on MacOS")
 def test_placeholders_in_menu_name(delete_files):
     _, paths, tmp_base_path, _ = check_output_from_shortcut(
         delete_files,
@@ -203,14 +205,14 @@ def test_placeholders_in_menu_name(delete_files):
         expected_output=sys.prefix,
         remove_after=False,
     )
-    if platform_key() == "win":
+    if sys.platform == "win32":
         for path in paths:
             if path.suffix == ".lnk" and "Start Menu" in path.parts:
                 assert path.parent.name == f"Sys.Prefix {Path(tmp_base_path).name}"
                 break
         else:
             raise AssertionError("Didn't find Start Menu")
-    elif platform_key() == "linux":
+    elif sys.platform.startswith("linux"):
         config_directory = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
         desktop_directory = (
             Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser()
@@ -240,7 +242,7 @@ def test_precommands(delete_files):
     )
 
 
-@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 def test_entitlements(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "entitlements.json", remove_after=False, expected_output="entitlements"
@@ -272,7 +274,7 @@ def test_entitlements(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 def test_no_entitlements_no_signature(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "sys-prefix.json", remove_after=False, expected_output=sys.prefix
@@ -288,7 +290,7 @@ def test_no_entitlements_no_signature(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 def test_info_plist(delete_files):
     json_path, paths, *_ = check_output_from_shortcut(
         delete_files, "entitlements.json", remove_after=False, expected_output="entitlements"
@@ -307,7 +309,7 @@ def test_info_plist(delete_files):
     remove(json_path)
 
 
-@pytest.mark.skipif(platform_key() != "osx", reason="macOS only")
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 def test_osx_symlinks(delete_files):
     json_path, paths, _, output = check_output_from_shortcut(
         delete_files, "osx_symlinks.json", remove_after=False
@@ -371,7 +373,7 @@ def test_url_protocol_association(delete_files):
     )
 
 
-@pytest.mark.skipif(platform_key() != "win", reason="Windows only")
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_windows_terminal_profiles(tmp_path, run_as_user):
     settings_file = Path(
         tmp_path, "localappdata", "Microsoft", "Windows Terminal", "settings.json"
@@ -405,7 +407,7 @@ def test_name_dictionary(target_env_is_base):
     abs_json_path = DATA / "jsons" / "menu-name.json"
     menu_items = install(abs_json_path, target_prefix=tmp_target_path, base_prefix=tmp_base_path)
     try:
-        if platform_key() == "linux":
+        if sys.platform.startswith("linux"):
             expected = {
                 "package_a" if target_env_is_base else "package_a-not-in-base",
                 "package_b",
@@ -416,7 +418,7 @@ def test_name_dictionary(target_env_is_base):
                 "A" if target_env_is_base else "A_not_in_base",
                 "B",
             }
-            if platform_key() == "win":
+            if sys.platform == "win32":
                 expected.update(["Package"])
         item_names = {item.stem for item in menu_items}
         assert item_names == expected
@@ -425,9 +427,9 @@ def test_name_dictionary(target_env_is_base):
 
 
 def test_vars_in_working_dir(tmp_path, monkeypatch, delete_files):
-    if platform_key() == "win":
+    if sys.platform == "win32":
         expected_directory = Path(os.environ["TEMP"], "working_dir_test")
-    elif platform_key() == "osx":
+    elif sys.platform == "darwin":
         expected_directory = Path(os.environ["TMPDIR"], "working_dir_test")
     else:
         # Linux often does not have an environment variable for the tmp directory
