@@ -19,8 +19,6 @@ from menuinst.api import install, remove
 from menuinst.platforms.osx import _lsregister
 from menuinst.utils import DEFAULT_PREFIX, logged_run, slugify
 
-DATA = Path(__file__).parent / "data"
-
 
 def _poll_for_file_contents(path, timeout=30):
     t0 = time()
@@ -39,6 +37,7 @@ def _poll_for_file_contents(path, timeout=30):
 
 def check_output_from_shortcut(
     delete_files,
+    data_path,
     json_path,
     remove_after=True,
     expected_output=None,
@@ -50,7 +49,7 @@ def check_output_from_shortcut(
 
     output = None
     output_file = None
-    abs_json_path = DATA / "jsons" / json_path
+    abs_json_path = data_path / "jsons" / json_path
     contents = abs_json_path.read_text()
     if "__OUTPUT_FILE__" in contents:
         with NamedTemporaryFile(suffix=json_path, mode="w", delete=False) as tmp:
@@ -149,8 +148,8 @@ def test_install_prefix(delete_files):
     check_output_from_shortcut(delete_files, "sys-prefix.json", expected_output=sys.prefix)
 
 
-def test_install_remove(tmp_path, delete_files):
-    metadata = DATA / "jsons" / "sys-prefix.json"
+def test_install_remove(tmp_path, delete_files, data_path):
+    metadata = data_path / "jsons" / "sys-prefix.json"
     (tmp_path / ".nonadmin").touch()
     paths = set(install(metadata, target_prefix=tmp_path, base_prefix=tmp_path, _mode="user"))
     delete_files.extend(paths)
@@ -374,13 +373,13 @@ def test_url_protocol_association(delete_files):
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_windows_terminal_profiles(tmp_path, run_as_user):
+def test_windows_terminal_profiles(tmp_path, data_path):
     settings_file = Path(
         tmp_path, "localappdata", "Microsoft", "Windows Terminal", "settings.json"
     )
     settings_file.parent.mkdir(parents=True)
     (tmp_path / ".nonadmin").touch()
-    metadata_file = DATA / "jsons" / "windows-terminal.json"
+    metadata_file = data_path / "jsons" / "windows-terminal.json"
     install(metadata_file, target_prefix=tmp_path, base_prefix=tmp_path)
     try:
         settings = json.loads(settings_file.read_text())
@@ -398,13 +397,13 @@ def test_windows_terminal_profiles(tmp_path, run_as_user):
 
 
 @pytest.mark.parametrize("target_env_is_base", (True, False))
-def test_name_dictionary(target_env_is_base):
+def test_name_dictionary(target_env_is_base, data_path):
     tmp_base_path = mkdtemp()
     tmp_target_path = tmp_base_path if target_env_is_base else mkdtemp()
     (Path(tmp_base_path) / ".nonadmin").touch()
     if not target_env_is_base:
         (Path(tmp_target_path) / ".nonadmin").touch()
-    abs_json_path = DATA / "jsons" / "menu-name.json"
+    abs_json_path = data_path / "jsons" / "menu-name.json"
     menu_items = install(abs_json_path, target_prefix=tmp_target_path, base_prefix=tmp_base_path)
     try:
         if sys.platform.startswith("linux"):
@@ -426,7 +425,7 @@ def test_name_dictionary(target_env_is_base):
         remove(abs_json_path, target_prefix=tmp_target_path, base_prefix=tmp_base_path)
 
 
-def test_vars_in_working_dir(tmp_path, monkeypatch, delete_files):
+def test_vars_in_working_dir(tmp_path, monkeypatch, delete_files, data_path):
     if sys.platform == "win32":
         expected_directory = Path(os.environ["TEMP"], "working_dir_test")
     elif sys.platform == "darwin":
@@ -436,7 +435,7 @@ def test_vars_in_working_dir(tmp_path, monkeypatch, delete_files):
         monkeypatch.setenv("TMP", "/tmp")
         expected_directory = Path("/tmp/working_dir_test")
     delete_files.append(expected_directory)
-    datafile = str(DATA / "jsons" / "working-dir.json")
+    datafile = str(data_path / "jsons" / "working-dir.json")
     try:
         install(datafile, base_prefix=tmp_path, target_prefix=tmp_path)
         assert expected_directory.exists()

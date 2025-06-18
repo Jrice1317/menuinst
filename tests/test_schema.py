@@ -14,11 +14,9 @@ from menuinst._schema import BasePlatformSpecific, MenuItem, validate
 # def test_schema_can_be_loaded(value):
 #     assert value
 
-DATA = Path(__file__).parent / "data"
-
 
 @pytest.mark.parametrize(
-    "path", [pytest.param(path, id=path.name) for path in sorted((DATA / "jsons").glob("*.json"))]
+    "path", [pytest.param(path, id=path.name) for path in sorted((data_path / "jsons").glob("*.json"))]
 )
 def test_examples(path):
     if "invalid" in path.name:

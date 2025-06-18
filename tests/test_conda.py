@@ -16,8 +16,6 @@ from conda.models.version import VersionOrder
 from menuinst._schema import validate
 from menuinst.platforms import Menu, MenuItem
 
-DATA = Path(__file__).parent / "data"
-
 
 ENV_VARS = {
     k: v
@@ -57,7 +55,7 @@ def new_environment(tmpdir, conda_cli, *packages):
 
 
 @contextmanager
-def install_package_1(tmpdir, conda_cli):
+def install_package_1(tmpdir, conda_cli, data_path):
     """
     This package is shipped with the test data and contains two menu items.
 
@@ -67,7 +65,7 @@ def install_package_1(tmpdir, conda_cli):
     while the second one will be empty (Windows) or "N/A" (Unix).
     """
     with new_environment(
-        tmpdir, conda_cli, DATA / "pkgs" / "noarch" / "package_1-0.1-0.tar.bz2"
+        tmpdir, conda_cli, data_path / "pkgs" / "noarch" / "package_1-0.1-0.tar.bz2"
     ) as prefix:
         menu_file = Path(prefix) / "Menu" / "package_1.json"
         with open(menu_file) as f:

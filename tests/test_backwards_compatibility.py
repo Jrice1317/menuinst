@@ -3,7 +3,6 @@ import os
 import pytest
 from pathlib import Path
 
-DATA = Path(__file__).parent / "data"
 LEGACY = Path(__file__).parent / "_legacy"
 
 
@@ -28,7 +27,7 @@ def test_import_paths():
 @pytest.mark.parametrize(
     "json_path",
     [
-        pytest.param(str(DATA / "jsons" / "sys-prefix.json"), id="v2"),
+        pytest.param(str(data_path / "jsons" / "sys-prefix.json"), id="v2"),
         pytest.param(str(LEGACY / "sys-prefix.json"), id="v1"),
     ],
 )

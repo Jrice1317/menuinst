@@ -14,6 +14,11 @@ logging.basicConfig(level=logging.DEBUG)
 os.environ["PYTEST_IN_USE"] = "1"
 
 
+@pytest.fixture()
+def data_path():
+    return Path(__file__).parent / "data"
+
+
 @pytest.fixture(scope="session")
 def base_prefix():
     prefix = os.environ.get("CONDA_ROOT", os.environ.get("MAMBA_ROOT_PREFIX"))
