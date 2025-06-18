@@ -12,10 +12,10 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 from conda.models.version import VersionOrder
-from conftest import BASE_PREFIX, DATA, PLATFORM
 
 from menuinst._schema import validate
 from menuinst.platforms import Menu, MenuItem
+
 
 ENV_VARS = {
     k: v
@@ -55,7 +55,7 @@ def new_environment(tmpdir, conda_cli, *packages):
 
 
 @contextmanager
-def install_package_1(tmpdir, conda_cli):
+def install_package_1(tmpdir, conda_cli, data_path):
     """
     This package is shipped with the test data and contains two menu items.
 
@@ -65,7 +65,7 @@ def install_package_1(tmpdir, conda_cli):
     while the second one will be empty (Windows) or "N/A" (Unix).
     """
     with new_environment(
-        tmpdir, conda_cli, DATA / "pkgs" / "noarch" / "package_1-0.1-0.tar.bz2"
+        tmpdir, conda_cli, data_path / "pkgs" / "noarch" / "package_1-0.1-0.tar.bz2"
     ) as prefix:
         menu_file = Path(prefix) / "Menu" / "package_1.json"
         with open(menu_file) as f:
@@ -81,8 +81,8 @@ def test_conda_recent_enough():
     assert VersionOrder(data["conda_version"]) >= VersionOrder("4.12a0")
 
 
-@pytest.mark.skipif(PLATFORM != "linux", reason="Linux only")
-def test_package_1_linux(tmpdir, conda_cli):
+@pytest.mark.skipif(sys.platform.startswith("linux"), reason="Linux only")
+def test_package_1_linux(tmpdir, conda_cli, base_prefix):
     applications_menu = Path(tmpdir) / "config" / "menus" / "applications.menu"
     if applications_menu.is_file():
         original_xml = applications_menu.read_text()
@@ -90,7 +90,7 @@ def test_package_1_linux(tmpdir, conda_cli):
         original_xml = None
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         menu_items = [item.dict() for item in meta.menu_items]
         items = [menu]
 
@@ -114,12 +114,12 @@ def test_package_1_linux(tmpdir, conda_cli):
         assert original_xml == applications_menu.read_text()
 
 
-@pytest.mark.skipif(PLATFORM != "osx", reason="MacOS only")
-def test_package_1_osx(tmpdir, conda_cli):
+@pytest.mark.skipif(sys.platform != "darwin", reason="MacOS only")
+def test_package_1_osx(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
         menu_items = [item.dict() for item in meta.menu_items]
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         items = [menu]
         # First case, activation is on, output should be the prefix path
         # Second case, activation is off, output should be N/A
@@ -141,11 +141,11 @@ def test_package_1_osx(tmpdir, conda_cli):
             assert not path.exists()
 
 
-@pytest.mark.skipif(PLATFORM != "win", reason="Windows only")
-def test_package_1_windows(tmpdir, conda_cli):
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_package_1_windows(tmpdir, conda_cli, base_prefix):
     with install_package_1(tmpdir, conda_cli) as (prefix, menu_file):
         meta = validate(menu_file)
-        menu = Menu(meta.menu_name, str(prefix), BASE_PREFIX)
+        menu = Menu(meta.menu_name, str(prefix), base_prefix)
         menu_items = [item.dict() for item in meta.menu_items]
         items = [menu]
         # First case, activation is on, output should be the prefix path

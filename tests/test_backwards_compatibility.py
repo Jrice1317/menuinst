@@ -1,7 +1,10 @@
 import os
 
 import pytest
-from conftest import DATA, LEGACY
+from pathlib import Path
+
+LEGACY = Path(__file__).parent / "_legacy"
+
 
 if os.name != "nt":
     pytest.skip("Windows only", allow_module_level=True)
@@ -24,7 +27,7 @@ def test_import_paths():
 @pytest.mark.parametrize(
     "json_path",
     [
-        pytest.param(str(DATA / "jsons" / "sys-prefix.json"), id="v2"),
+        pytest.param(str(data_path / "jsons" / "sys-prefix.json"), id="v2"),
         pytest.param(str(LEGACY / "sys-prefix.json"), id="v1"),
     ],
 )
