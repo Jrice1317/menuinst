@@ -8,6 +8,9 @@ from pydantic.v1 import ValidationError as ValidationErrorV1
 
 from menuinst._schema import BasePlatformSpecific, MenuItem, validate
 
+DATA = Path(__file__).parent / "data"
+
+
 # # suppress_health_check=3 --> too_slow
 # @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
 # @given(from_schema(MenuInstSchema.schema()))
@@ -16,7 +19,7 @@ from menuinst._schema import BasePlatformSpecific, MenuItem, validate
 
 
 @pytest.mark.parametrize(
-    "path", [pytest.param(path, id=path.name) for path in sorted((data_path / "jsons").glob("*.json"))]
+    "path", [pytest.param(path, id=path.name) for path in sorted((DATA / "jsons").glob("*.json"))]
 )
 def test_examples(path):
     if "invalid" in path.name:
