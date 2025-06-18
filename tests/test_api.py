@@ -102,14 +102,13 @@ def check_output_from_shortcut(
                 assert url_to_open is not None
                 arg = url_to_open
             app_location = paths[0]
-            if sys.platform == "darwin":
-                cmd = ["open"]
-            elif sys.platform.startswith("linux"):
-                cmd = ["xdg-open"]
-            elif sys.platform == "win32":
-                cmd = ["cmd", "/C", "start"]
-            else:
-                raise ValueError(f"Unsupported platform: {sys.platform}")
+            cmd = {
+                "darwin": ["open"],
+                "win32": ["cmd", "/C", "start"],
+                }
+            if sys.platform.startswith("linux"):
+                cmd["linux"] = ["xdg-open"]
+
             process = logged_run([*cmd, arg], check=True)
             output = _poll_for_file_contents(output_file)
     finally:
